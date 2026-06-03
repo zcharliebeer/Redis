@@ -92,7 +92,17 @@ func main() {
             if (server.maxmemory > 0 && zmalloc_used_memory() > server.maxmemory) {
                 timelimit_exit = 1;
                 break;
-            }`
+            }
+            
+            /* Yield early under high fragmentation or memory pressure */
+            #if defined(USE_JEMALLOC)
+            size_t current_rss = zmalloc_get_rss();
+            double current_frag = zmalloc_get_fragmentation_ratio(current_rss);
+            if (current_frag > 1.5 || (server.maxmemory > 0 && current_rss > server.maxmemory)) {
+                timelimit_exit = 1;
+                break;
+            }
+            #endif`
 			sContent = strings.Replace(sContent, periodicCheckTarget, periodicCheckReplacement, 1)
 			modified = true
 		}
